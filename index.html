@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#eef4fb">
+<title>Étoiles des enfants</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one card per child; inside, a small table of star lines (oldest on top, current line last), each full line carries its own "donnée" state */
+:root{
+  --bg:#eef4fb; --card:#ffffff; --ink:#1d2a44; --muted:#5d6b85; --line:#d6e0ee;
+  --gold:#f2b705; --gold-deep:#c98f00; --slot:#e3eaf4; --win:#fff6d6; --ok:#2f8f5b; --okbg:#e3f4ea;
+  --c1:#3a7bd5; --c2:#e0567a; --c3:#2f9e75; --c4:#8a5cd6; --c5:#e07b2e; --c6:#1f9bb5;
+  --display:"Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121a2a; --card:#1b2538; --ink:#eef2fa; --muted:#a3b0c8; --line:#2c3a55;
+  --gold:#ffc928; --gold-deep:#ffdb6e; --slot:#26324a; --win:#3a3114; --ok:#6fd39b; --okbg:#1d3a2b;
+  --c1:#6ea2ef; --c2:#f07b9a; --c3:#55c29a; --c4:#a988ec; --c5:#f09a55; --c6:#4fc0d8;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#121a2a; --card:#1b2538; --ink:#eef2fa; --muted:#a3b0c8; --line:#2c3a55;
+  --gold:#ffc928; --gold-deep:#ffdb6e; --slot:#26324a; --win:#3a3114; --ok:#6fd39b; --okbg:#1d3a2b;
+  --c1:#6ea2ef; --c2:#f07b9a; --c3:#55c29a; --c4:#a988ec; --c5:#f09a55; --c6:#4fc0d8;
+  color-scheme:dark }
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));padding-block:18px 40px;margin:0}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:800;font-size:1.7rem;line-height:1.1;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;color:inherit;background:transparent}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.ghost{border:1.5px solid var(--line);padding:8px 14px;font-weight:700;background:var(--card)}
+.ghost[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#list{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border-radius:18px;padding:14px 14px 14px 18px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:10px;border:1px solid var(--line)}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--kc)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.name{font-family:var(--display);font-weight:800;font-size:1.45rem;color:var(--kc);line-height:1}
+.owed{background:var(--gold);color:#1d2a44;font-weight:800;font-size:.85rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.goalinfo{color:var(--muted);font-size:.85rem;font-weight:700}
+.lines{display:flex;flex-direction:column;gap:6px}
+.ln{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 8px;border-radius:12px}
+.ln.full{background:var(--win);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.ln.given{background:var(--okbg)}
+.ln.given .stars{opacity:.55}
+.lnum{font-variant-numeric:tabular-nums;font-size:.75rem;font-weight:700;color:var(--muted);width:1.4em;text-align:right}
+.stars{display:grid;gap:4px;flex:1;min-width:0;max-width:calc(var(--n) * 38px)}
+.slot{aspect-ratio:1;display:grid;place-items:center;border-radius:9px;background:var(--slot);max-width:100%}
+.ln.full .slot,.ln.given .slot{background:transparent}
+.slot svg{width:82%;height:82%}
+.slot .s{fill:transparent;stroke:var(--muted);stroke-width:1.6;opacity:.45}
+.slot.on .s{fill:var(--gold);stroke:var(--gold-deep);opacity:1}
+.slot.pop{animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.18)}100%{transform:scale(1)}}
+.give{background:var(--gold);color:#1d2a44;font-weight:800;padding:8px 12px;border-radius:10px;white-space:nowrap;margin-left:auto}
+.done{color:var(--ok);font-weight:700;font-size:.88rem;padding:6px 4px;white-space:nowrap;margin-left:auto}
+.more{color:var(--muted);font-weight:700;font-size:.88rem;padding:4px 0;text-align:left}
+.actions{display:flex;gap:8px;align-items:center}
+.add{flex:1;background:var(--kc);color:#fff;font-weight:800;font-size:1.05rem;padding:12px 14px;border-radius:14px}
+.minus{border:1.5px solid var(--line);width:48px;height:48px;font-size:1.4rem;font-weight:800;border-radius:14px;flex:none}
+.minus:disabled{opacity:.35;cursor:default}
+.goalpick{display:flex;flex-direction:column;gap:8px}
+.goalpick p{margin:0;color:var(--muted);font-size:.92rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);min-width:44px;height:44px;font-weight:800;border-radius:12px;background:var(--card)}
+.edit{display:flex;flex-direction:column;gap:10px}
+.edit label{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.edit input{font:inherit;font-size:1rem;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
+.edit .hint{color:var(--muted);font-size:.82rem;margin:0}
+.row2{display:grid;grid-template-columns:1fr 110px;gap:10px}
+.row2>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.danger{color:#c0392b;font-weight:700;padding:8px 0;text-align:left}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.92rem}
+.confirm .yes{background:#c0392b;color:#fff;padding:8px 12px;font-weight:700}
+.newkid{display:flex;gap:8px}
+.newkid input{flex:1;min-width:0;font:inherit;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+.newkid button{background:var(--ink);color:var(--bg);font-weight:700;padding:10px 14px}
+.empty{background:var(--card);border:1.5px dashed var(--line);border-radius:18px;padding:22px;text-align:center;color:var(--muted)}
+.note{color:var(--muted);font-size:.85rem;text-align:center;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:.95rem;max-width:calc(100% - 40px)}
+@media (prefers-reduced-motion:reduce){.slot.pop{animation:none}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Étoiles des enfants</h1>
+      <p class="sub">Une ligne pleine = une récompense à donner.</p>
+    </div>
+    <button class="ghost" id="editBtn" aria-pressed="false">Modifier</button>
+  </header>
+  <div id="list"></div>
+  <div class="newkid" id="newKid" hidden>
+    <input id="newName" placeholder="Prénom d'un enfant" maxlength="30">
+    <button id="addKidBtn">Ajouter</button>
+  </div>
+  <p class="note" id="note"></p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const STAR='<svg viewBox="0 0 24 24" aria-hidden="true"><path class="s" d="M12 2.6l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17l-5.6 3 1.1-6.3L2.9 9.3l6.3-.9z" stroke-linejoin="round"/></svg>';
+const COLORS=['--c1','--c2','--c3','--c4','--c5','--c6'];
+const SHOW_GIVEN=2;
+let kids=[]; let editing=false; let confirmDel=null; let lastPop=null;
+const API='https://script.google.com/macros/s/AKfycbzLi0ptClQ8n5wL0PizSf7UmBnwyQTfLH8I7osHP_hpW1j9U0Q63XB6unxuA0UWHmciHQ/exec';
+function asList(r){return r.json().then(d=>{if(!Array.isArray(d))throw new Error(d&&d.error||'réponse invalide');return d})}
+function apiList(){return fetch(API+'?action=list',{cache:'no-store'}).then(asList)}
+function apiPost(o){return fetch(API,{method:'POST',body:JSON.stringify(o)}).then(asList)}
+const pending={}, inflight={}; const dirty=new Set(); const expanded=new Set();
+
+function lsGet(){try{return JSON.parse(localStorage.getItem('etoiles-gs')||'null')}catch(e){return null}}
+function lsSet(){try{localStorage.setItem('etoiles-gs',JSON.stringify(kids))}catch(e){}}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2400)}
+function fmt(ts){try{return new Date(ts).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}catch(e){return''}}
+
+// Bring any document to the "lines" shape. Older docs had a single stars counter.
+function norm(k){
+  k=Object.assign({},k);
+  if(!Array.isArray(k.lines)){
+    k.lines=k.goal?[{goal:k.goal,stars:Math.min(k.stars||0,k.goal),given:false}]:[];
+  }else k.lines=k.lines.map(l=>Object.assign({},l));
+  return k;
+}
+function current(k){const l=k.lines[k.lines.length-1];return (l&&l.stars<l.goal)?l:null}
+function prune(k){
+  const g=k.lines.map((l,i)=>(l.given?i:-1)).filter(i=>i>=0);
+  if(g.length<=SHOW_GIVEN) return false;
+  const drop=new Set(g.slice(0,g.length-SHOW_GIVEN));
+  k.lines=k.lines.filter((l,i)=>!drop.has(i));
+  return true;
+}
+function owed(k){return k.lines.filter(l=>l.stars>=l.goal&&!l.given).length}
+
+function body(k){return {id:k.id,name:k.name,goal:k.goal||0,lines:k.lines,order:k.order,color:k.color}}
+const ver={};
+function save(k){
+  lsSet(); dirty.add(k.id); ver[k.id]=(ver[k.id]||0)+1;
+  clearTimeout(pending[k.id]); pending[k.id]=setTimeout(()=>flush(k.id),450);
+}
+function flush(id){
+  const k=kids.find(x=>x.id===id); if(!k){dirty.delete(id);return}
+  if(inflight[id]){pending[id]=setTimeout(()=>flush(id),400);return}
+  inflight[id]=true; const sent=ver[id];
+  apiPost({action:'save',kid:body(k)})
+    .then(list=>{inflight[id]=false; if(ver[id]===sent) dirty.delete(id); merge(list)})
+    .catch(()=>{inflight[id]=false; toast("Pas enregistré, vérifie la connexion."); pending[id]=setTimeout(()=>flush(id),5000)});
+}
+function merge(list){
+  const fresh=(list||[]).map(norm);
+  const out=fresh.map(f=>{const loc=kids.find(x=>x.id===f.id);return (loc&&dirty.has(f.id))?loc:f});
+  kids.forEach(l=>{if(dirty.has(l.id)&&!out.find(x=>x.id===l.id)) out.push(l)});
+  out.forEach(k=>{if(!dirty.has(k.id)&&prune(k)) save(k)});
+  kids=out; lsSet();
+  document.getElementById('note').textContent='Synchronisé à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  if(!document.activeElement||document.activeElement.tagName!=='INPUT') render();
+}
+function refresh(){apiList().then(merge).catch(()=>{document.getElementById('note').textContent='Hors ligne, nouvelle tentative bientôt.'})}
+
+function addStar(k){
+  let l=current(k);
+  if(!l){l={goal:k.goal,stars:0,given:false};k.lines.push(l)}
+  l.stars++; lastPop={id:k.id,li:k.lines.length-1,i:l.stars-1};
+  if(l.stars>=l.goal) toast(k.name+' a rempli une ligne ! Récompense à donner.');
+  save(k);render();
+}
+function removeStar(k){
+  const l=k.lines[k.lines.length-1]; if(!l) return;
+  if(l.given&&l.stars>=l.goal){toast("Cette ligne est déjà récompensée.");return}
+  l.stars--; if(l.stars<=0&&k.lines.length>1) k.lines.pop();
+  if(l.stars<0) l.stars=0;
+  lastPop=null;save(k);render();
+}
+
+function slotsEl(k,li,l){
+  const st=document.createElement('div');st.className='stars';
+  st.style.setProperty('--n',l.goal);
+  st.style.gridTemplateColumns='repeat('+l.goal+',minmax(0,1fr))';
+  st.setAttribute('aria-label',l.stars+' étoiles sur '+l.goal);
+  for(let i=0;i<l.goal;i++){
+    const s=document.createElement('div');
+    s.className='slot'+(i<l.stars?' on':'')+(lastPop&&lastPop.id===k.id&&lastPop.li===li&&lastPop.i===i?' pop':'');
+    s.innerHTML=STAR;st.append(s);
+  }
+  return st;
+}
+
+function render(){
+  const list=document.getElementById('list');
+  document.getElementById('newKid').hidden=!editing;
+  list.innerHTML='';
+  if(!kids.length){list.innerHTML='<div class="empty">Aucun enfant pour l’instant.<br>Touche <b>Modifier</b> puis ajoute un prénom.</div>';return}
+  kids.forEach(k=>{
+    const c=document.createElement('section');c.className='card';
+    c.style.setProperty('--kc','var('+(k.color||COLORS[0])+')');
+    const top=document.createElement('div');top.className='top';
+    const nm=document.createElement('div');nm.className='name';nm.textContent=k.name;top.append(nm);
+    const o=owed(k);
+    if(o&&!editing){const b=document.createElement('span');b.className='owed';b.textContent=o===1?'1 récompense à donner':o+' récompenses à donner';top.append(b)}
+    else if(k.goal&&!editing){const g=document.createElement('span');g.className='goalinfo';g.textContent=k.goal+' étoiles par ligne';top.append(g)}
+    c.append(top);
+
+    if(editing){
+      const ed=document.createElement('div');ed.className='edit';
+      ed.innerHTML='<div class="row2"><div><label for="n-'+k.id+'">Prénom</label><input id="n-'+k.id+'" maxlength="30"></div><div><label for="g-'+k.id+'">Étoiles / ligne</label><input id="g-'+k.id+'" type="number" min="1" max="20" inputmode="numeric"></div></div><p class="hint">Le nouveau nombre s’applique à la ligne en cours et aux suivantes.</p>';
+      const ni=ed.querySelector('#n-'+k.id), gi=ed.querySelector('#g-'+k.id);
+      ni.value=k.name; gi.value=k.goal||'';
+      ni.addEventListener('change',()=>{const v=ni.value.trim(); if(v){k.name=v;save(k)}});
+      gi.addEventListener('change',()=>{const v=Math.max(1,Math.min(20,parseInt(gi.value)||0)); if(!v)return;
+        k.goal=v; const l=current(k); if(l){l.goal=v;l.stars=Math.min(l.stars,v)} save(k);render()});
+      if(confirmDel===k.id){
+        const cf=document.createElement('div');cf.className='confirm';
+        cf.innerHTML='<span>Supprimer <b></b> et toutes ses étoiles ?</span>';cf.querySelector('b').textContent=k.name;
+        const y=document.createElement('button');y.className='yes';y.textContent='Supprimer';
+        y.onclick=()=>{kids=kids.filter(x=>x.id!==k.id);confirmDel=null;dirty.delete(k.id);lsSet();render();
+          apiPost({action:'delete',id:k.id}).then(merge).catch(()=>toast("Suppression non enregistrée."))};
+        const n=document.createElement('button');n.className='ghost';n.textContent='Annuler';n.onclick=()=>{confirmDel=null;render()};
+        cf.append(y,n);ed.append(cf);
+      }else{
+        const d=document.createElement('button');d.className='danger';d.textContent='Supprimer cet enfant';
+        d.onclick=()=>{confirmDel=k.id;render()};ed.append(d);
+      }
+      c.append(ed);list.append(c);return;
+    }
+
+    if(!k.goal){
+      const gp=document.createElement('div');gp.className='goalpick';
+      gp.innerHTML='<p>Combien d’étoiles par ligne ? (son âge)</p>';
+      const ch=document.createElement('div');ch.className='chips';
+      for(let i=2;i<=12;i++){const b=document.createElement('button');b.className='chip';b.textContent=i;
+        b.onclick=()=>{k.goal=i;if(!k.lines.length)k.lines.push({goal:i,stars:0,given:false});save(k);render()};ch.append(b)}
+      gp.append(ch);c.append(gp);list.append(c);return;
+    }
+
+    // Lines: hide older rewarded lines beyond the last few unless expanded
+    const lines=document.createElement('div');lines.className='lines';
+    const shown=k.lines.length?k.lines:[{goal:k.goal,stars:0,given:false}];
+    shown.forEach((l,li)=>{
+      const full=l.stars>=l.goal;
+      const row=document.createElement('div');row.className='ln'+(l.given?' given':full?' full':'');
+      const num=document.createElement('span');num.className='lnum';num.textContent=li+1;
+      row.append(num,slotsEl(k,li,l));
+      if(full&&!l.given){
+        const g=document.createElement('button');g.className='give';g.textContent='Donnée ✓';
+        g.setAttribute('aria-label','Récompense de la ligne '+(li+1)+' donnée');
+        g.onclick=()=>{l.given=true;l.givenAt=Date.now();prune(k);save(k);render();toast('Récompense notée pour '+k.name+'.')};
+        row.append(g);
+      }else if(l.given){
+        const d=document.createElement('button');d.className='done';
+        d.textContent='✓ donnée'+(l.givenAt?' le '+fmt(l.givenAt):'');
+        d.title='Toucher pour annuler';
+        d.onclick=()=>{if(d.dataset.arm){l.given=false;delete l.givenAt;save(k);render()}else{d.dataset.arm='1';d.textContent='Annuler ?';setTimeout(()=>render(),2500)}};
+        row.append(d);
+      }
+      lines.append(row);
+    });
+    c.append(lines);
+
+    const ac=document.createElement('div');ac.className='actions';
+    const a=document.createElement('button');a.className='add';a.textContent='+ 1 étoile';a.onclick=()=>addStar(k);
+    const last=k.lines[k.lines.length-1];
+    const m=document.createElement('button');m.className='minus';m.textContent='−';
+    m.setAttribute('aria-label','Retirer une étoile à '+k.name);
+    m.disabled=!last||last.stars<=0||(last.given&&last.stars>=last.goal);
+    m.onclick=()=>removeStar(k);
+    ac.append(a,m);c.append(ac);
+    list.append(c);
+  });
+  lastPop=null;
+}
+
+document.getElementById('editBtn').onclick=e=>{editing=!editing;confirmDel=null;e.currentTarget.setAttribute('aria-pressed',editing);e.currentTarget.textContent=editing?'Terminé':'Modifier';render()};
+document.getElementById('addKidBtn').onclick=()=>{
+  const inp=document.getElementById('newName');const v=inp.value.trim();if(!v)return;
+  const id='k'+Date.now().toString(36);
+  const k={id,name:v,goal:0,lines:[],order:(kids.reduce((m,x)=>Math.max(m,x.order||0),0)+1),color:COLORS[kids.length%COLORS.length]};
+  kids.push(k);inp.value='';save(k);render();
+};
+document.getElementById('newName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addKidBtn').click()});
+
+kids=(lsGet()||[]).map(norm);render();
+refresh();
+setInterval(()=>{if(document.visibilityState==='visible')refresh()},15000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh()});
+</script>
+
+</body>
+</html>
